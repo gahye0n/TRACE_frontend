@@ -134,6 +134,10 @@
   <nav>
     <a href="#overview" class="navlink">Research</a>
     <a href="https://github.com/gahye0n/TRACE_frontend" class="navlink" id="githubLink" target="_blank" rel="noopener">Github</a>
+    <button class="btn btn-secondary" id="themeToggle" title="Toggle light/dark theme" aria-label="Toggle theme">
+      <svg class="icon-moon" viewBox="0 0 20 20" fill="none"><path d="M17 11.5A7 7 0 0 1 8.5 3 7 7 0 1 0 17 11.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      <svg class="icon-sun" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="3.6" stroke="currentColor" stroke-width="1.6"/><path d="M10 1.5v2.2M10 16.3v2.2M2.5 10h2.2M15.3 10h2.2M4.6 4.6l1.5 1.5M13.9 13.9l1.5 1.5M4.6 15.4l1.5-1.5M13.9 6.1l1.5-1.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
     <a href="analyze.html" class="btn btn-primary">Try Now</a>
   </nav>
 </header>
@@ -198,6 +202,13 @@
       if (localStorage.getItem("trace-theme") === "light") document.documentElement.dataset.theme = "light";
     } catch (e) {}
   })();
+
+  /* Theme toggle (same behavior/markup as analyze.html, so the header is consistent everywhere) */
+  document.getElementById("themeToggle").addEventListener("click", () => {
+    const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem("trace-theme", next); } catch (e) {}
+  });
 
   /* Hero background: fill the grid with tiles, each a frosted "frame" of the one moving
      gradient behind the whole section — like a single clip diced into many glass panes. */

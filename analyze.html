@@ -77,7 +77,6 @@
     width: 340px; height: 260px; border-radius: var(--radius);
     display: flex; align-items: center; justify-content: center; cursor: pointer;
     position: relative; overflow: hidden; background: var(--panel); flex-shrink: 0;
-    border: 1px solid var(--line-soft); box-shadow: var(--shadow-card);
   }
   #dropzone.dragover { background: var(--panel-2); }
   #dropzone .placeholder { text-align: center; color: var(--muted); }
@@ -123,13 +122,6 @@
     opacity: .8; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
     transition: width 1s cubic-bezier(.16, 1, .3, 1);
   }
-
-  /* ---- Theme toggle ---- */
-  #themeToggle { padding: 8px; }
-  #themeToggle svg { width: 16px; height: 16px; display: block; }
-  #themeToggle .icon-sun { display: none; }
-  :root[data-theme="light"] #themeToggle .icon-moon { display: none; }
-  :root[data-theme="light"] #themeToggle .icon-sun { display: block; }
 
   .loading { display: none; align-items: center; gap: 10px; font-size: 13.5px; color: var(--muted); margin-top: 16px; }
   .spinner { width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--line-soft); border-top-color: var(--ink); animation: spin .8s linear infinite; }
@@ -671,7 +663,7 @@ function renderFeatureSection() {
     if (meta.chart) {
       const chartWrap = document.createElement("div");
       chartWrap.className = "feature-chart";
-      chartWrap.innerHTML = svgBarChart(values, { color: meta.color });
+      chartWrap.innerHTML = svgBarChart(values, { color: lastData.dominant_color || meta.color });
       details.appendChild(chartWrap);
     } else if (meta.note) {
       const note = document.createElement("div");
