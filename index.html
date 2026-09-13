@@ -13,14 +13,19 @@
   .hero {
     position: relative; overflow: hidden;
     display: flex; flex-direction: column; align-items: center; text-align: center;
-    padding: 140px var(--side-pad); gap: 48px;
+    padding: 92px var(--side-pad); gap: 40px;
     background: linear-gradient(120deg, #0d0d0e, #060607 42%, #160707 72%, #060607);
     background-size: 320% 320%;
     animation: heroFlow 24s ease-in-out infinite;
   }
-  @media (max-width: 900px) { .hero { padding: 108px var(--side-pad); gap: 32px; } }
-  @media (max-width: 480px) { .hero { padding: 88px var(--side-pad); gap: 32px; } }
+  @media (max-width: 900px) { .hero { padding: 72px var(--side-pad); gap: 28px; } }
+  @media (max-width: 480px) { .hero { padding: 56px var(--side-pad); gap: 28px; } }
   @keyframes heroFlow { 0%, 100% { background-position: 0% 30%; } 50% { background-position: 100% 70%; } }
+
+  /* 라이트 테마에서는 애니메이션 배경 없이 순백색으로 — 스크림·타일과 겹쳐 얼룩져 보이는 걸 방지 */
+  :root[data-theme="light"] .hero { background: var(--shell-bg); animation: none; }
+  :root[data-theme="light"] .hero__bg { display: none; }
+  :root[data-theme="light"] .hero__text::before { display: none; }
 
   /* ---- Hero background: a single moving gradient "video" diced into a grid of frosted-glass frames ---- */
   .hero__bg {
@@ -59,9 +64,6 @@
     content: ""; position: absolute; z-index: -1; inset: -20px -40px;
     background: radial-gradient(ellipse at center, rgba(10, 10, 11, .82) 0%, rgba(10, 10, 11, .55) 55%, rgba(10, 10, 11, 0) 78%);
     border-radius: 32px;
-  }
-  :root[data-theme="light"] .hero__text::before {
-    background: radial-gradient(ellipse at center, rgba(247, 247, 248, .88) 0%, rgba(247, 247, 248, .6) 55%, rgba(247, 247, 248, 0) 78%);
   }
   @media (max-width: 900px) { .hero__text { align-items: flex-start; text-align: left; gap: 24px; padding: 40px 28px; } }
 
