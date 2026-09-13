@@ -131,16 +131,6 @@
   :root[data-theme="light"] #themeToggle .icon-moon { display: none; }
   :root[data-theme="light"] #themeToggle .icon-sun { display: block; }
 
-  /* ---- Percent bar color picker (next to the wordmark) ---- */
-  #barColorPicker {
-    width: 22px; height: 22px; padding: 0; margin-left: 2px; border: 1px solid var(--border-tint);
-    border-radius: 50%; background: none; cursor: pointer; -webkit-appearance: none; appearance: none;
-    overflow: hidden; flex-shrink: 0;
-  }
-  #barColorPicker::-webkit-color-swatch-wrapper { padding: 0; }
-  #barColorPicker::-webkit-color-swatch { border: none; border-radius: 50%; }
-  #barColorPicker::-moz-color-swatch { border: none; border-radius: 50%; }
-
   .loading { display: none; align-items: center; gap: 10px; font-size: 13.5px; color: var(--muted); margin-top: 16px; }
   .spinner { width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--line-soft); border-top-color: var(--ink); animation: spin .8s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -183,7 +173,6 @@
 
 <div class="app-shell">
 <nav class="icon-rail" aria-label="Main navigation">
-  <a class="rail-mark" href="index.html" title="TRACE" aria-hidden="true"><span></span></a>
   <a href="index.html" title="Home">
     <svg viewBox="0 0 20 20" fill="none"><path d="M3 10l7-6 7 6M5 9v7a1 1 0 001 1h3v-5h2v5h3a1 1 0 001-1V9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </a>
@@ -197,12 +186,9 @@
 <div class="shell-main">
 
 <header>
-  <div class="brand-group">
-    <a class="brand" href="index.html">
-      <span class="logo-word">TRACE</span>
-    </a>
-    <input type="color" id="barColorPicker" value="#cb0303" title="Percent bar color (auto-set from your video, or pick your own)" aria-label="Percent bar color" />
-  </div>
+  <a class="brand" href="index.html">
+    <span class="logo-word">TRACE</span>
+  </a>
   <nav>
     <a href="index.html#overview" class="navlink" id="researchLink">Research</a>
     <a href="https://github.com/gahye0n/TRACE_frontend" class="navlink" id="githubLink" target="_blank" rel="noopener">Github</a>
@@ -374,19 +360,13 @@ document.getElementById("themeToggle").addEventListener("click", () => {
   try { localStorage.setItem("trace-theme", next); } catch (e) {}
 });
 
-/* ---- Percent bar color picker (RGB, via the browser's native color input) ---- */
-const barColorPicker = document.getElementById("barColorPicker");
+/* ---- Percent bar color: restore the last video's extracted color until a new one is analyzed ---- */
 (function () {
   try {
     const saved = localStorage.getItem("trace-bar-color");
-    if (saved) barColorPicker.value = saved;
+    if (saved) document.documentElement.style.setProperty("--bar-fill", saved);
   } catch (e) {}
 })();
-barColorPicker.addEventListener("input", (e) => {
-  const hex = e.target.value;
-  document.documentElement.style.setProperty("--bar-fill", hex);
-  try { localStorage.setItem("trace-bar-color", hex); } catch (e) {}
-});
 
 /* ---- Upload ---- */
 dropzone.addEventListener("click", (e) => {
@@ -564,7 +544,6 @@ function renderAll(data) {
   // Percent bar + spectrum colors are all derived server-side from this video's own dominant color.
   if (data.dominant_color) {
     document.documentElement.style.setProperty("--bar-fill", data.dominant_color);
-    barColorPicker.value = data.dominant_color;
     try { localStorage.setItem("trace-bar-color", data.dominant_color); } catch (e) {}
   }
 

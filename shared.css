@@ -56,17 +56,12 @@ body {
   gap: 8px; padding: 18px 0; border-right: 1px solid var(--line-soft); background: var(--shell-bg);
 }
 @media (max-width: 480px) { .icon-rail { display: none; } }
-.icon-rail .rail-mark {
-  width: 36px; height: 36px; border-radius: 11px; display: flex; align-items: center; justify-content: center;
-  background: var(--ink); color: var(--bg); margin-bottom: 10px; text-decoration: none; flex-shrink: 0;
-}
-.icon-rail .rail-mark span { width: 9px; height: 9px; border-radius: 50%; background: #cb0303; }
-.icon-rail a:not(.rail-mark) {
+.icon-rail a {
   width: 38px; height: 38px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center;
   color: var(--muted); position: relative; text-decoration: none; transition: background 140ms ease, color 140ms ease;
 }
-.icon-rail a:not(.rail-mark) svg { width: 18px; height: 18px; }
-.icon-rail a:not(.rail-mark):hover { background: var(--panel); color: var(--ink); }
+.icon-rail a svg { width: 18px; height: 18px; }
+.icon-rail a:hover { background: var(--panel); color: var(--ink); }
 .icon-rail a.active { background: var(--panel-2); color: var(--ink); box-shadow: var(--shadow-card); }
 .icon-rail a.active::before {
   content: ""; position: absolute; left: -1px; top: 50%; transform: translateY(-50%);
@@ -78,8 +73,7 @@ header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 20px var(--side-pad); border-bottom: 1px solid var(--line-soft); gap: 16px;
 }
-.brand-group { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
-.brand { display: flex; align-items: center; gap: 10px; min-width: 0; text-decoration: none; color: var(--ink); }
+.brand { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; text-decoration: none; color: var(--ink); }
 .logo-word { font-weight: 600; font-size: 20px; letter-spacing: -0.02em; }
 header nav { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
 header nav a.navlink { color: var(--muted); text-decoration: none; font-size: 14.5px; font-weight: 500; letter-spacing: -0.005em; }
@@ -88,16 +82,26 @@ header nav a.navlink:hover { color: var(--ink); }
   header nav a.navlink { display: none; }
 }
 
-/* ---- 공통 버튼 ---- */
+/* ---- 공통 버튼: 알약형(pill) ---- */
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 11px 16px; border-radius: var(--radius-sm); font-size: 14.5px; font-weight: 500;
+  padding: 11px 20px; border-radius: 999px; font-size: 14.5px; font-weight: 500;
   letter-spacing: -0.005em; cursor: pointer; font-family: inherit; text-decoration: none;
+  transition: opacity 140ms ease, transform 140ms ease;
 }
 .btn-primary { background: var(--btn-primary-bg); color: var(--btn-primary-text); border: 1px solid var(--btn-primary-bg); }
 .btn-primary:hover { opacity: .88; }
 .btn-primary:disabled { opacity: .35; cursor: not-allowed; }
 .btn-secondary { background: transparent; color: var(--ink); border: 1px solid var(--border-tint); }
+.btn-secondary:hover { transform: translateY(-1px); }
+.btn-arrow {
+  display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 42px; height: 42px; border-radius: 999px; margin-left: -8px;
+  background: var(--btn-primary-bg); color: var(--btn-primary-text);
+  text-decoration: none; transition: transform 140ms ease;
+}
+.btn-arrow svg { width: 16px; height: 16px; }
+.btn-arrow:hover { transform: rotate(45deg); }
 .btn-secondary:hover { background: var(--panel); }
 .btn-block { display: flex; width: 100%; }
 

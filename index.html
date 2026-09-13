@@ -14,7 +14,7 @@
     position: relative; overflow: hidden;
     display: flex; flex-direction: column; align-items: center; text-align: center;
     padding: 140px var(--side-pad); gap: 48px;
-    background: linear-gradient(120deg, #200707, #0c0c0e 42%, #2b0808 72%, #0c0c0e);
+    background: linear-gradient(120deg, #0d0d0e, #060607 42%, #160707 72%, #060607);
     background-size: 320% 320%;
     animation: heroFlow 24s ease-in-out infinite;
   }
@@ -113,7 +113,6 @@
 
 <div class="app-shell">
 <nav class="icon-rail" aria-label="Main navigation">
-  <a class="rail-mark" href="index.html" title="TRACE" aria-hidden="true"><span></span></a>
   <a href="index.html" class="active" title="Home">
     <svg viewBox="0 0 20 20" fill="none"><path d="M3 10l7-6 7 6M5 9v7a1 1 0 001 1h3v-5h2v5h3a1 1 0 001-1V9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
   </a>
@@ -144,6 +143,9 @@
     <p class="hero__sub">Try our hybrid model that combines temporal low-level artifacts with CNN features to detect AI-generated video — upload your own video to see it in action.</p>
     <div class="hero__buttons">
       <a href="analyze.html" class="btn btn-primary">Try Now</a>
+      <a href="analyze.html" class="btn-arrow" aria-hidden="true">
+        <svg viewBox="0 0 20 20" fill="none"><path d="M5 15L15 5M15 5H7M15 5V13" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </a>
       <a href="#overview" class="btn btn-secondary">View Research Overview</a>
     </div>
   </div>
