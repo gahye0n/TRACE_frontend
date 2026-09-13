@@ -13,9 +13,10 @@
   --btn-primary-bg: #ffffff;
   --btn-primary-text: #101012;
   --side-pad: 56px;
-  --rail-width: 56px;
-  --radius: 14px;
-  --radius-sm: 10px;
+  --rail-width: 64px;
+  --radius: 18px;
+  --radius-sm: 12px;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, .5), 0 12px 28px -14px rgba(0, 0, 0, .6);
 }
 @media (max-width: 900px) { :root { --side-pad: 28px; } }
 @media (max-width: 480px) { :root { --side-pad: 20px; --rail-width: 0px; } }
@@ -33,6 +34,7 @@
   --border-tint: rgba(0, 0, 0, .12);
   --btn-primary-bg: #17171a;
   --btn-primary-text: #ffffff;
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, .06), 0 12px 28px -16px rgba(0, 0, 0, .18);
 }
 
 * { box-sizing: border-box; }
@@ -51,16 +53,21 @@ body {
 /* ---- 아이콘 레일 ---- */
 .icon-rail {
   width: var(--rail-width); flex-shrink: 0; display: flex; flex-direction: column; align-items: center;
-  gap: 6px; padding: 16px 0; border-right: 1px solid var(--line-soft); background: var(--shell-bg);
+  gap: 8px; padding: 18px 0; border-right: 1px solid var(--line-soft); background: var(--shell-bg);
 }
 @media (max-width: 480px) { .icon-rail { display: none; } }
-.icon-rail a {
-  width: 34px; height: 34px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center;
-  color: var(--muted); position: relative; text-decoration: none;
+.icon-rail .rail-mark {
+  width: 36px; height: 36px; border-radius: 11px; display: flex; align-items: center; justify-content: center;
+  background: var(--ink); color: var(--bg); margin-bottom: 10px; text-decoration: none; flex-shrink: 0;
 }
-.icon-rail a svg { width: 18px; height: 18px; }
-.icon-rail a:hover { background: var(--panel); color: var(--ink); }
-.icon-rail a.active { background: var(--panel-2); color: var(--ink); }
+.icon-rail .rail-mark span { width: 9px; height: 9px; border-radius: 50%; background: #cb0303; }
+.icon-rail a:not(.rail-mark) {
+  width: 38px; height: 38px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center;
+  color: var(--muted); position: relative; text-decoration: none; transition: background 140ms ease, color 140ms ease;
+}
+.icon-rail a:not(.rail-mark) svg { width: 18px; height: 18px; }
+.icon-rail a:not(.rail-mark):hover { background: var(--panel); color: var(--ink); }
+.icon-rail a.active { background: var(--panel-2); color: var(--ink); box-shadow: var(--shadow-card); }
 .icon-rail a.active::before {
   content: ""; position: absolute; left: -1px; top: 50%; transform: translateY(-50%);
   width: 2px; height: 16px; border-radius: 2px; background: var(--muted-strong);
@@ -71,7 +78,8 @@ header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 20px var(--side-pad); border-bottom: 1px solid var(--line-soft); gap: 16px;
 }
-.brand { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; text-decoration: none; color: var(--ink); }
+.brand-group { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+.brand { display: flex; align-items: center; gap: 10px; min-width: 0; text-decoration: none; color: var(--ink); }
 .logo-word { font-weight: 600; font-size: 20px; letter-spacing: -0.02em; }
 header nav { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
 header nav a.navlink { color: var(--muted); text-decoration: none; font-size: 14.5px; font-weight: 500; letter-spacing: -0.005em; }
