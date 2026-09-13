@@ -1,0 +1,697 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TRACE — AI-Generated Video Detection</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<script>
+  /* 저장된 테마·퍼센트 바 색을 body가 그려지기 전에 적용해 화면이 깜빡이는 것을 막음 */
+  (function () {
+    try {
+      if (localStorage.getItem("trace-theme") === "light") document.documentElement.dataset.theme = "light";
+      const savedBarColor = localStorage.getItem("trace-bar-color");
+      if (savedBarColor) document.documentElement.style.setProperty("--bar-fill", savedBarColor);
+    } catch (e) {}
+  })();
+</script>
+<style>
+  /* ---- Layout ---- */
+  .layout { display: flex; align-items: flex-start; }
+  .page { flex: 1; min-width: 0; padding: 32px var(--side-pad) 0; }
+
+  /* ---- Model selector: React Bits LineSidebar port (vertical), matte glassmorphism highlight ---- */
+  aside.line-sidebar {
+    --accent-color: var(--ink);   /* color reached on proximity/active */
+    --text-color: var(--muted);     /* resting label color */
+    --marker-color: var(--line-soft);
+    --marker-length: 18px;
+    --marker-gap: 8px;
+    --tick-scale: 0.5;
+    --max-shift: 6px;
+    --item-gap: 6px;
+    --font-size: .95rem;
+    --smoothing: 120ms;
+    position: relative; width: 200px; flex-shrink: 0;
+    border-right: 1px solid var(--line-soft);
+  }
+  .line-sidebar--markers { padding-left: 16px; }
+  .line-sidebar__list { list-style: none; margin: 0; padding: 20px 16px 20px 16px; display: flex; flex-direction: column; gap: var(--item-gap); }
+  .line-sidebar__item {
+    position: relative; cursor: pointer; border-radius: var(--radius-sm); padding: 8px 10px;
+    background: color-mix(in srgb, var(--ink) calc(var(--effect, 0) * 9%), transparent);
+    border: 1px solid color-mix(in srgb, var(--ink) calc(var(--effect, 0) * 14%), transparent);
+    backdrop-filter: blur(calc(var(--effect, 0) * 6px));
+    -webkit-backdrop-filter: blur(calc(var(--effect, 0) * 6px));
+  }
+  .line-sidebar__content {
+    position: relative; display: block;
+    color: color-mix(in srgb, var(--accent-color) calc(var(--effect, 0) * 100%), var(--text-color));
+    transform: translateX(calc(var(--effect, 0) * var(--max-shift)));
+  }
+  .line-sidebar__label { display: flex; align-items: baseline; font-size: var(--font-size); font-weight: 600; line-height: 1.25; }
+  .line-sidebar__index {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin-right: 7px;
+    font-size: .72em; font-weight: 500; opacity: calc(0.55 + var(--effect, 0) * 0.45);
+  }
+  .line-sidebar__auc { display: none; }
+  .line-sidebar__marker { display: none; }
+
+  .page-heading { font-size: 48px; font-weight: 700; letter-spacing: -0.02em; line-height: 1.2; margin: 56px 0 28px; }
+  @media (max-width: 900px) { .page-heading { font-size: 36px; margin: 44px 0 24px; } }
+  @media (max-width: 480px) { .page-heading { font-size: 28px; margin: 36px 0 20px; } }
+
+  h2.section-title {
+    font-size: 20px; font-weight: 600; letter-spacing: -0.01em;
+    color: var(--ink); margin: 0 0 16px;
+  }
+  h3.sub-heading { font-size: 14px; font-weight: 600; color: var(--muted-strong); margin: 30px 0 12px; }
+
+  /* ---- Upload + score ---- */
+  .top-row { display: flex; gap: 24px; margin-bottom: 24px; flex-wrap: wrap; }
+
+  #dropzone {
+    width: 340px; height: 260px; border-radius: var(--radius);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    position: relative; overflow: hidden; background: var(--panel); flex-shrink: 0;
+  }
+  #dropzone.dragover { background: var(--panel-2); }
+  #dropzone .placeholder { text-align: center; color: var(--muted); }
+  #dropzone .placeholder .icon { font-size: 30px; display: block; margin-bottom: 10px; }
+  #dropzone img#firstFrame {
+    display: none; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+    filter: blur(16px); transform: scale(1.1);
+  }
+  /* After analysis starts: drop the blur, show only the sharp first frame */
+  #dropzone.analyzing img#firstFrame { filter: none; transform: none; }
+  #fileInput { display: none; }
+  .dz-overlay {
+    position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 10px; z-index: 2;
+  }
+  .dz-overlay.show { display: flex; }
+  .dz-filename {
+    font-size: 12px; color: rgba(0, 0, 0, .68); background: rgba(255, 255, 255, .88);
+    padding: 4px 12px; border-radius: 999px; max-width: 90%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .score-panel { flex: 1; min-width: 220px; display: flex; flex-direction: column; justify-content: center; }
+  .score-panel .kicker { font-size: 14px; color: var(--muted); font-weight: 500; }
+  .score-panel .kicker b { color: var(--ink); font-weight: 600; }
+  .score-num { font-size: 100px; font-weight: 600; line-height: 1; margin: 12px 0 10px; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .score-num::after { content: "%"; font-size: 44px; margin-left: 4px; }
+  @media (max-width: 480px) { .score-num { font-size: 64px; } .score-num::after { font-size: 28px; } }
+  .verdict-tag { width: 100%; }
+  .verdict-tag .verdict-label {
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 20px; font-weight: 700; letter-spacing: .04em; margin-bottom: 8px;
+  }
+  .verdict-tag .verdict-pct { font-variant-numeric: tabular-nums; color: var(--muted); font-weight: 600; font-size: 15px; }
+  .verdict-tag.real .verdict-label { color: var(--ink); }
+  .verdict-tag.fake .verdict-label { color: var(--ink); }
+  .verdict-bar-track {
+    width: 100%; height: 14px; border-radius: 999px; overflow: hidden;
+    background: color-mix(in srgb, var(--ink) 6%, transparent);
+    border: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  }
+  .verdict-bar-fill {
+    height: 100%; width: 0%; border-radius: 999px; background: var(--bar-fill);
+    opacity: .8; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    transition: width 1s cubic-bezier(.16, 1, .3, 1);
+  }
+
+  /* ---- Theme toggle ---- */
+  #themeToggle { padding: 8px; }
+  #themeToggle svg { width: 16px; height: 16px; display: block; }
+  #themeToggle .icon-sun { display: none; }
+  :root[data-theme="light"] #themeToggle .icon-moon { display: none; }
+  :root[data-theme="light"] #themeToggle .icon-sun { display: block; }
+
+  /* ---- Percent bar color picker (next to the wordmark) ---- */
+  #barColorPicker {
+    width: 22px; height: 22px; padding: 0; margin-left: 2px; border: 1px solid var(--border-tint);
+    border-radius: 50%; background: none; cursor: pointer; -webkit-appearance: none; appearance: none;
+    overflow: hidden; flex-shrink: 0;
+  }
+  #barColorPicker::-webkit-color-swatch-wrapper { padding: 0; }
+  #barColorPicker::-webkit-color-swatch { border: none; border-radius: 50%; }
+  #barColorPicker::-moz-color-swatch { border: none; border-radius: 50%; }
+
+  .loading { display: none; align-items: center; gap: 10px; font-size: 13.5px; color: var(--muted); margin-top: 16px; }
+  .spinner { width: 15px; height: 15px; border-radius: 50%; border: 2px solid var(--line-soft); border-top-color: var(--ink); animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #errorBox { display: none; margin-top: 12px; font-size: 13px; color: var(--ink); border: 1px solid var(--ink); padding: 10px 12px; border-radius: var(--radius); }
+
+  /* ---- Cards shared (spectrum/wavelet) ---- */
+  .card-title { font-weight: 600; font-size: 24px; letter-spacing: -0.02em; margin-top: 12px; }
+  .card-desc { font-size: 18px; font-weight: 500; color: var(--muted); margin-top: 6px; line-height: 1.45; letter-spacing: -0.005em; }
+  @media (max-width: 900px) { .card-title { font-size: 20px; } .card-desc { font-size: 15px; } }
+
+  /* ---- 24-frame grid ---- */
+  #frameSection, #spectrumSection, #featureSection { display: none; padding-bottom: 40px; }
+  .frame-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+  .frame-grid img { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: var(--radius-sm); display: block; }
+
+  /* ---- Spectrum: no block separation, just image + text ---- */
+  .spectrum-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; width: 100%; }
+  .spectrum-row-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; width: 100%; }
+  .spectrum-item img { width: 100%; aspect-ratio: 1/1; object-fit: cover; display: block; border-radius: var(--radius-sm); }
+  .spectrum-item img.wide { aspect-ratio: 16/9; object-fit: contain; }
+  .wavelet-band-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; width: 100%; }
+
+  /* ---- Features used for prediction ---- */
+  .feature-group { margin-bottom: 20px; }
+  .feature-group summary { cursor: pointer; font-weight: 600; font-size: 14px; list-style: revert; }
+  .feature-group summary::marker { color: var(--muted); }
+  .feature-chart { margin-top: 12px; }
+  .feature-note { margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+  .feat-table-wrap { margin-top: 10px; max-height: 220px; overflow: auto; }
+  table.feat-table { width: 100%; border-collapse: collapse; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  table.feat-table td { padding: 3px 10px; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+  table.feat-table td:first-child { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--muted); }
+  table.feat-table td:last-child { text-align: right; }
+
+  /* ---- Bottom CTA ---- */
+  #resultsFooter { display: none; margin-top: 24px; padding-bottom: 40px; }
+</style>
+</head>
+<body>
+
+<div class="app-shell">
+<nav class="icon-rail" aria-label="Main navigation">
+  <a href="home.html" title="Home">
+    <svg viewBox="0 0 20 20" fill="none"><path d="M3 10l7-6 7 6M5 9v7a1 1 0 001 1h3v-5h2v5h3a1 1 0 001-1V9" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  </a>
+  <a href="index.html" class="active" title="Analyze">
+    <svg viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="6" stroke="currentColor" stroke-width="1.6"/><path d="M10 2v3M10 15v3M2 10h3M15 10h3" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </a>
+  <a href="home.html#overview" title="Overview">
+    <svg viewBox="0 0 20 20" fill="none"><path d="M6 2h6l4 4v12a1 1 0 01-1 1H6a1 1 0 01-1-1V3a1 1 0 011-1z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 11h6M8 14h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+  </a>
+</nav>
+<div class="shell-main">
+
+<header>
+  <div class="brand">
+    <span class="logo-word">TRACE</span>
+    <input type="color" id="barColorPicker" value="#cb0303" title="Percent bar color (RGB)" aria-label="Percent bar color" />
+  </div>
+  <nav>
+    <a href="#" class="navlink" id="researchLink">Research</a>
+    <a href="#" class="navlink" id="githubLink">Github</a>
+    <button class="btn btn-secondary" id="themeToggle" title="Toggle light/dark theme" aria-label="Toggle theme">
+      <svg class="icon-moon" viewBox="0 0 20 20" fill="none"><path d="M17 11.5A7 7 0 0 1 8.5 3 7 7 0 1 0 17 11.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      <svg class="icon-sun" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="3.6" stroke="currentColor" stroke-width="1.6"/><path d="M10 1.5v2.2M10 16.3v2.2M2.5 10h2.2M15.3 10h2.2M4.6 4.6l1.5 1.5M13.9 13.9l1.5 1.5M4.6 15.4l1.5-1.5M13.9 6.1l1.5-1.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </button>
+    <button class="btn btn-primary" id="tryNowBtn">Try Now</button>
+  </nav>
+</header>
+
+<div class="layout">
+  <aside id="sidebar" class="line-sidebar line-sidebar--markers line-sidebar--scale-tick">
+    <ul class="line-sidebar__list" id="sidebarList">
+      <li class="line-sidebar__item" data-key="ResNet 단독 (기준선)" data-index="0">
+        <span class="line-sidebar__marker" aria-hidden="true"></span>
+        <div class="line-sidebar__content">
+          <span class="line-sidebar__label"><span class="line-sidebar__index">01</span><span class="line-sidebar__text">ResNet</span></span>
+          <span class="line-sidebar__auc" data-auc></span>
+        </div>
+      </li>
+      <li class="line-sidebar__item" data-key="ResNet + Spatial-Level" data-index="1">
+        <span class="line-sidebar__marker" aria-hidden="true"></span>
+        <div class="line-sidebar__content">
+          <span class="line-sidebar__label"><span class="line-sidebar__index">02</span><span class="line-sidebar__text">Spatial</span></span>
+          <span class="line-sidebar__auc" data-auc></span>
+        </div>
+      </li>
+      <li class="line-sidebar__item" data-key="ResNet + Temporal-native" data-index="2">
+        <span class="line-sidebar__marker" aria-hidden="true"></span>
+        <div class="line-sidebar__content">
+          <span class="line-sidebar__label"><span class="line-sidebar__index">03</span><span class="line-sidebar__text">Temporal</span></span>
+          <span class="line-sidebar__auc" data-auc></span>
+        </div>
+      </li>
+      <li class="line-sidebar__item" data-key="ResNet + Full Artifact (=Hybrid)" data-index="3">
+        <span class="line-sidebar__marker" aria-hidden="true"></span>
+        <div class="line-sidebar__content">
+          <span class="line-sidebar__label"><span class="line-sidebar__index">04</span><span class="line-sidebar__text">Hybrid</span></span>
+          <span class="line-sidebar__auc" data-auc></span>
+        </div>
+      </li>
+    </ul>
+  </aside>
+
+  <main class="page">
+    <div class="top-row">
+      <div id="dropzone">
+        <div class="placeholder" id="dzPlaceholder">
+          <span class="icon">&#8593;</span>
+          Drag and drop a video<br />or click to upload
+        </div>
+        <img id="firstFrame" alt="First frame" />
+        <div class="dz-overlay" id="dzOverlay">
+          <button class="btn btn-primary" id="analyzeBtn" disabled>Start Analysis</button>
+          <div class="dz-filename" id="dzFilename"></div>
+        </div>
+        <input type="file" id="fileInput" accept="video/*" />
+      </div>
+
+      <div class="score-panel">
+        <div class="kicker">Detection Result</div>
+        <div class="score-num" id="scoreNum">0</div>
+        <div class="verdict-tag" id="verdictTag">
+          <div class="verdict-label"><span id="verdictText">—</span><span class="verdict-pct" id="verdictPct"></span></div>
+          <div class="verdict-bar-track"><div class="verdict-bar-fill" id="verdictBarFill"></div></div>
+        </div>
+        <div class="loading" id="loading"><div class="spinner"></div><span>Extracting frames · computing features · running inference...</span></div>
+        <div id="errorBox"></div>
+      </div>
+    </div>
+
+    <h1 class="page-heading">Video Analysis Results</h1>
+
+    <section id="spectrumSection">
+      <h2 class="section-title">Frequency Spectrum Analysis</h2>
+      <div class="spectrum-row">
+        <div class="spectrum-item">
+          <img id="specOriginal" />
+          <div class="card-title">Original Frame</div>
+        </div>
+        <div class="spectrum-item">
+          <img id="specFft" />
+          <div class="card-title">DFT Power Spectrum</div>
+        </div>
+        <div class="spectrum-item">
+          <img id="specWavelet" />
+          <div class="card-title">DWT Power Spectrum</div>
+        </div>
+      </div>
+
+      <h3 class="sub-heading">Wavelet Frequency Band Decomposition</h3>
+      <div class="wavelet-band-row" id="waveletLevels"></div>
+
+      <h3 class="sub-heading">Temporal Spectrum (Temporal FFT · Temporal Wavelet)</h3>
+      <div class="spectrum-row-2">
+        <div class="spectrum-item">
+          <img id="specTemporalFft" class="wide" />
+          <div class="card-title">Temporal FFT Spectrum</div>
+        </div>
+        <div class="spectrum-item">
+          <img id="specTemporalWavelet" class="wide" />
+          <div class="card-title">Temporal Wavelet Spectrum</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="featureSection">
+      <h2 class="section-title">Features Used for Prediction</h2>
+      <div id="featureGroups"></div>
+    </section>
+
+    <section id="frameSection">
+      <h2 class="section-title">24 Frame Sample</h2>
+      <div class="frame-grid" id="frameGrid"></div>
+    </section>
+
+    <section id="resultsFooter">
+      <button id="resetBtn" class="btn btn-primary btn-block">Choose Another Video</button>
+    </section>
+  </main>
+</div>
+
+<footer class="note">
+  2026 Korea Science Fair · Web demo for "Analysis and Detection of Temporal Low-Level Artifact Patterns in AI-Generated Videos."
+</footer>
+
+</div>
+</div>
+
+<script>
+const API_BASE = "http://localhost:8000"; // Replace with the real backend URL on deploy
+
+const dropzone = document.getElementById("dropzone");
+const dzPlaceholder = document.getElementById("dzPlaceholder");
+const firstFrameImg = document.getElementById("firstFrame");
+const dzOverlay = document.getElementById("dzOverlay");
+const dzFilename = document.getElementById("dzFilename");
+const fileInput = document.getElementById("fileInput");
+const analyzeBtn = document.getElementById("analyzeBtn");
+const resetBtn = document.getElementById("resetBtn");
+const resultsFooter = document.getElementById("resultsFooter");
+const loading = document.getElementById("loading");
+const errorBox = document.getElementById("errorBox");
+
+let selectedFile = null;
+let lastData = null;      // last full analysis response (reused when switching models)
+let activeKey = "ResNet 단독 (기준선)";
+let currentObjectUrl = null;
+
+/* ---- Header CTA ---- */
+document.getElementById("tryNowBtn").addEventListener("click", () => {
+  dropzone.scrollIntoView({ behavior: "smooth", block: "center" });
+});
+
+/* ---- Theme toggle (light version is for report/demo screenshots) ---- */
+document.getElementById("themeToggle").addEventListener("click", () => {
+  const next = document.documentElement.dataset.theme === "light" ? "dark" : "light";
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem("trace-theme", next); } catch (e) {}
+});
+
+/* ---- Percent bar color picker (RGB, via the browser's native color input) ---- */
+const barColorPicker = document.getElementById("barColorPicker");
+(function () {
+  try {
+    const saved = localStorage.getItem("trace-bar-color");
+    if (saved) barColorPicker.value = saved;
+  } catch (e) {}
+})();
+barColorPicker.addEventListener("input", (e) => {
+  const hex = e.target.value;
+  document.documentElement.style.setProperty("--bar-fill", hex);
+  try { localStorage.setItem("trace-bar-color", hex); } catch (e) {}
+});
+
+/* ---- Upload ---- */
+dropzone.addEventListener("click", (e) => {
+  if (e.target.closest(".dz-overlay")) return; // don't reopen the file picker when clicking the analyze button
+  fileInput.click();
+});
+dropzone.addEventListener("dragover", (e) => { e.preventDefault(); dropzone.classList.add("dragover"); });
+dropzone.addEventListener("dragleave", () => dropzone.classList.remove("dragover"));
+dropzone.addEventListener("drop", (e) => {
+  e.preventDefault(); dropzone.classList.remove("dragover");
+  if (e.dataTransfer.files.length) setFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener("change", () => { if (fileInput.files.length) setFile(fileInput.files[0]); });
+
+function setFile(file) {
+  selectedFile = file;
+  dzFilename.textContent = file.name;
+  dzOverlay.classList.add("show");
+  analyzeBtn.disabled = false;
+  errorBox.style.display = "none";
+  showClientSideFirstFrame(file); // instant blurred preview before analysis starts
+}
+
+function showClientSideFirstFrame(file) {
+  if (currentObjectUrl) URL.revokeObjectURL(currentObjectUrl);
+  const url = URL.createObjectURL(file);
+  currentObjectUrl = url;
+
+  const videoEl = document.createElement("video");
+  videoEl.muted = true;
+  videoEl.playsInline = true;
+  videoEl.preload = "auto";
+  videoEl.src = url;
+
+  const capture = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = videoEl.videoWidth || 320;
+    canvas.height = videoEl.videoHeight || 240;
+    canvas.getContext("2d").drawImage(videoEl, 0, 0, canvas.width, canvas.height);
+    firstFrameImg.src = canvas.toDataURL("image/jpeg", 0.85);
+    firstFrameImg.style.display = "block";
+    dzPlaceholder.style.display = "none";
+  };
+  videoEl.addEventListener("loadedmetadata", () => {
+    videoEl.currentTime = Math.min(0.05, (videoEl.duration || 1) / 2);
+  }, { once: true });
+  videoEl.addEventListener("seeked", capture, { once: true });
+}
+
+resetBtn.addEventListener("click", () => {
+  selectedFile = null; lastData = null; fileInput.value = "";
+  if (currentObjectUrl) { URL.revokeObjectURL(currentObjectUrl); currentObjectUrl = null; }
+  dzFilename.textContent = ""; dzOverlay.classList.remove("show"); analyzeBtn.disabled = true;
+  dropzone.classList.remove("analyzing");
+  dzPlaceholder.style.display = "block"; firstFrameImg.style.display = "none";
+  document.getElementById("frameSection").style.display = "none";
+  document.getElementById("spectrumSection").style.display = "none";
+  document.getElementById("featureSection").style.display = "none";
+  document.getElementById("scoreNum").textContent = "0";
+  document.getElementById("verdictText").textContent = "—";
+  document.getElementById("verdictPct").textContent = "";
+  document.getElementById("verdictBarFill").style.width = "0%";
+  document.getElementById("verdictTag").className = "verdict-tag";
+  resultsFooter.style.display = "none";
+});
+
+/* ---- Model selector: React Bits LineSidebar port (vanilla JS, no framework) ---- */
+const sidebarList = document.getElementById("sidebarList");
+const sidebarItems = Array.from(sidebarList.querySelectorAll(".line-sidebar__item"));
+const smoothingMs = parseFloat(getComputedStyle(sidebarList.closest(".line-sidebar")).getPropertyValue("--smoothing")) || 120;
+const proximityRadius = 80;
+const fallSmooth = (p) => p * p * (3 - 2 * p);
+
+let activeIndex = 0;
+const targets = sidebarItems.map(() => 0);
+const current = sidebarItems.map(() => 0);
+let rafId = null;
+let lastT = 0;
+
+function runFrame(now) {
+  const dt = Math.min((now - lastT) / 1000, 0.05);
+  lastT = now;
+  const tau = Math.max(smoothingMs, 1) / 1000;
+  const k = 1 - Math.exp(-dt / tau);
+  let moving = false;
+  sidebarItems.forEach((el, i) => {
+    const target = Math.max(targets[i] || 0, activeIndex === i ? 1 : 0);
+    const next = current[i] + (target - current[i]) * k;
+    const settled = Math.abs(target - next) < 0.0015;
+    current[i] = settled ? target : next;
+    el.style.setProperty("--effect", current[i].toFixed(4));
+    if (!settled) moving = true;
+  });
+  rafId = moving ? requestAnimationFrame(runFrame) : null;
+}
+function startLoop() {
+  if (rafId != null) cancelAnimationFrame(rafId);
+  lastT = performance.now();
+  rafId = requestAnimationFrame(runFrame);
+}
+
+sidebarList.addEventListener("pointermove", (e) => {
+  const rect = sidebarList.getBoundingClientRect();
+  const pointerY = e.clientY - rect.top;
+  sidebarItems.forEach((el, i) => {
+    const center = el.offsetTop + el.offsetHeight / 2;
+    const distance = Math.abs(pointerY - center);
+    targets[i] = fallSmooth(Math.max(0, 1 - distance / proximityRadius));
+  });
+  startLoop();
+});
+sidebarList.addEventListener("pointerleave", () => {
+  targets.fill(0);
+  startLoop();
+});
+
+sidebarItems.forEach((el, i) => {
+  el.addEventListener("click", () => {
+    activeIndex = i;
+    activeKey = el.dataset.key;
+    if (lastData) { applyVerdict(lastData.results[activeKey]); renderFeatureSection(); }
+    startLoop();
+  });
+});
+startLoop(); // show default active (01 ResNet)
+
+/* ---- Analyze request ---- */
+analyzeBtn.addEventListener("click", async () => {
+  if (!selectedFile) return;
+  loading.style.display = "flex";
+  errorBox.style.display = "none";
+  analyzeBtn.disabled = true;
+  dropzone.classList.add("analyzing");   // drop the blur -> show only the sharp first frame
+  dzOverlay.classList.remove("show");    // hide button + filename
+
+  const form = new FormData();
+  form.append("file", selectedFile);
+
+  try {
+    const res = await fetch(`${API_BASE}/api/analyze`, { method: "POST", body: form });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || `Server error (${res.status})`);
+    }
+    const data = await res.json();
+    lastData = data;
+    renderAll(data);
+  } catch (e) {
+    errorBox.textContent = `Analysis failed: ${e.message}`;
+    errorBox.style.display = "block";
+    dropzone.classList.remove("analyzing"); // restore blur + button on failure so the user can retry
+    dzOverlay.classList.add("show");
+  } finally {
+    loading.style.display = "none";
+    analyzeBtn.disabled = false;
+    resultsFooter.style.display = "block";
+  }
+});
+
+function renderAll(data) {
+  // First frame -> upload box thumbnail (replaced with the server-extracted frame, no blur)
+  if (data.frames && data.frames.length) {
+    firstFrameImg.src = "data:image/jpeg;base64," + data.frames[0];
+    firstFrameImg.style.display = "block";
+    dzPlaceholder.style.display = "none";
+  }
+
+  // 24-frame grid
+  const grid = document.getElementById("frameGrid");
+  grid.innerHTML = "";
+  (data.frames || []).forEach((b64) => {
+    const img = document.createElement("img");
+    img.src = "data:image/jpeg;base64," + b64;
+    grid.appendChild(img);
+  });
+  document.getElementById("frameSection").style.display = data.frames?.length ? "block" : "none";
+
+  // Frequency spectrum (spatial + temporal)
+  if (data.spectrum) {
+    document.getElementById("specOriginal").src = "data:image/png;base64," + data.spectrum.original;
+    document.getElementById("specFft").src = "data:image/png;base64," + data.spectrum.fft;
+    document.getElementById("specWavelet").src = "data:image/png;base64," + data.spectrum.wavelet.final;
+    if (data.spectrum.temporal_fft) document.getElementById("specTemporalFft").src = "data:image/png;base64," + data.spectrum.temporal_fft;
+    if (data.spectrum.temporal_wavelet) document.getElementById("specTemporalWavelet").src = "data:image/png;base64," + data.spectrum.temporal_wavelet;
+
+    const levelsEl = document.getElementById("waveletLevels");
+    levelsEl.innerHTML = "";
+    (data.spectrum.wavelet.levels || []).forEach((lv) => {
+      const item = document.createElement("div");
+      item.className = "spectrum-item";
+      const img = document.createElement("img");
+      img.src = "data:image/png;base64," + lv.quad;
+      const title = document.createElement("div");
+      title.className = "card-title";
+      title.textContent = `Wavelet (Level ${lv.level})`;
+      item.appendChild(img);
+      item.appendChild(title);
+      levelsEl.appendChild(item);
+    });
+
+    document.getElementById("spectrumSection").style.display = "block";
+  }
+
+  // Test AUC per model in the sidebar
+  sidebarItems.forEach((el) => {
+    const r = data.results[el.dataset.key];
+    const aucEl = el.querySelector("[data-auc]");
+    if (r && aucEl) aucEl.textContent = "AUC " + r.auc.toFixed(4);
+  });
+
+  applyVerdict(data.results[activeKey]);
+  renderFeatureSection();
+}
+
+function applyVerdict(r) {
+  if (!r) return;
+  const pct = r.score * 100;
+  animateScore(pct);
+  document.getElementById("verdictText").textContent = r.label === "fake" ? "FAKE" : "REAL";
+  document.getElementById("verdictPct").textContent = pct.toFixed(1) + "%";
+  document.getElementById("verdictTag").className = "verdict-tag " + r.label;
+  requestAnimationFrame(() => {
+    document.getElementById("verdictBarFill").style.width = pct + "%";
+  });
+}
+
+/* ---- Feature values used for prediction, displayed + visualized ---- */
+const GROUP_META = {
+  framediff: { label: "Frame Difference", chart: true, color: "#5B8DEF" },
+  motion: { label: "Optical Flow", chart: true, color: "#2DD4BF" },
+  tfft: { label: "Temporal FFT", chart: false, note: 'The Temporal FFT chart above in "Temporal Spectrum" shows the spectrum of these values.' },
+  twav: { label: "Temporal Wavelet", chart: false, note: 'The Temporal Wavelet chart above in "Temporal Spectrum" shows the spectrum of these values.' },
+  rgb_level: { label: "RGB Statistics · Level", chart: true, color: "#FB7185" },
+  rgb_dynamics: { label: "RGB Statistics · Dynamics", chart: true, color: "#FB7185" },
+  fft_level: { label: "Spatial FFT · Level", chart: true, color: "#FBBF24" },
+  fft_dynamics: { label: "Spatial FFT · Dynamics", chart: true, color: "#FBBF24" },
+  wavelet_level: { label: "Spatial Wavelet · Level", chart: true, color: "#A78BFA" },
+  wavelet_dynamics: { label: "Spatial Wavelet · Dynamics", chart: true, color: "#A78BFA" },
+  resnet_level: { label: "ResNet CNN Embedding · Level", chart: false, note: "This 1024-dimensional CNN embedding is an uninterpretable high-dimensional vector, so visualization is omitted." },
+  resnet_dynamics: { label: "ResNet CNN Embedding · Dynamics", chart: false, note: "This 1024-dimensional CNN embedding is an uninterpretable high-dimensional vector, so visualization is omitted." },
+};
+
+function svgBarChart(values, { width = 640, height = 90, color = "#4269D0" } = {}) {
+  const n = values.length;
+  const max = Math.max(...values, 1e-9);
+  const gap = n > 60 ? 0 : 1;
+  const barW = Math.max(0.6, (width - gap * (n - 1)) / n);
+  let bars = "";
+  values.forEach((v, i) => {
+    const bh = max > 0 ? (v / max) * (height - 4) : 0;
+    const x = i * (barW + gap);
+    const y = height - bh;
+    bars += `<rect x="${x.toFixed(2)}" y="${y.toFixed(2)}" width="${barW.toFixed(2)}" height="${bh.toFixed(2)}" fill="${color}"/>`;
+  });
+  return `<svg viewBox="0 0 ${width} ${height}" width="100%" height="${height}" preserveAspectRatio="none">${bars}</svg>`;
+}
+
+function renderFeatureSection() {
+  if (!lastData || !lastData.features) return;
+  const cols = (lastData.feature_columns_by_model && lastData.feature_columns_by_model[activeKey]) || [];
+  const byPrefix = {};
+  cols.forEach((c) => {
+    const prefix = c.replace(/_\d+$/, "");
+    (byPrefix[prefix] = byPrefix[prefix] || []).push(c);
+  });
+
+  const container = document.getElementById("featureGroups");
+  container.innerHTML = "";
+  Object.keys(byPrefix).sort().forEach((prefix) => {
+    const names = byPrefix[prefix].sort((a, b) => parseInt(a.split("_").pop(), 10) - parseInt(b.split("_").pop(), 10));
+    const values = names.map((n) => lastData.features[n]);
+    const meta = GROUP_META[prefix] || { label: prefix, chart: false };
+
+    const details = document.createElement("details");
+    details.className = "feature-group";
+    details.open = !prefix.startsWith("resnet");
+
+    const summary = document.createElement("summary");
+    summary.textContent = `${meta.label} (${names.length}-dim)`;
+    details.appendChild(summary);
+
+    if (meta.chart) {
+      const chartWrap = document.createElement("div");
+      chartWrap.className = "feature-chart";
+      chartWrap.innerHTML = svgBarChart(values, { color: meta.color });
+      details.appendChild(chartWrap);
+    } else if (meta.note) {
+      const note = document.createElement("div");
+      note.className = "feature-note";
+      note.textContent = meta.note;
+      details.appendChild(note);
+    }
+
+    const tableWrap = document.createElement("div");
+    tableWrap.className = "feat-table-wrap";
+    tableWrap.innerHTML = "<table class=\"feat-table\"><tbody>" +
+      names.map((n, i) => `<tr><td>${n}</td><td>${values[i].toFixed(6)}</td></tr>`).join("") +
+      "</tbody></table>";
+    details.appendChild(tableWrap);
+
+    container.appendChild(details);
+  });
+
+  document.getElementById("featureSection").style.display = cols.length ? "block" : "none";
+}
+
+function animateScore(target) {
+  const el = document.getElementById("scoreNum");
+  const start = performance.now();
+  const duration = 900;
+  const ease = (t) => 1 - Math.pow(1 - t, 3);
+  function step(now) {
+    const t = Math.min(1, (now - start) / duration);
+    el.textContent = (target * ease(t)).toFixed(1);
+    if (t < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+</script>
+</body>
+</html>

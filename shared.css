@@ -1,0 +1,102 @@
+:root {
+  --bg: #19191c;          /* 페이지 바탕 — 셸과 동일한 회색으로 통일 */
+  --shell-bg: #19191c;    /* 앱 셸 배경 */
+  --panel: #212126;       /* 카드/서피스 (레벨 2) */
+  --panel-2: #2a2a30;     /* 강조/호버/뱃지 (레벨 3) */
+  --ink: #f3f3f1;
+  --muted: rgba(243, 243, 241, .58);
+  --muted-strong: #d8d8d6;
+  --line-soft: rgba(255, 255, 255, .08);
+  --border-tint: rgba(255, 255, 255, .12);
+  --accent: #2F6FED;  /* 파랑 — 포스터(주황 배경)에서도 확실히 도드라지도록 주황 계열은 피함 */
+  --bar-fill: #cb0303;  /* 퍼센트 바 채우기 색 */
+  --btn-primary-bg: #ffffff;
+  --btn-primary-text: #101012;
+  --side-pad: 56px;
+  --rail-width: 56px;
+  --radius: 14px;
+  --radius-sm: 10px;
+}
+@media (max-width: 900px) { :root { --side-pad: 28px; } }
+@media (max-width: 480px) { :root { --side-pad: 20px; --rail-width: 0px; } }
+
+/* ---- 라이트(흰색) 테마 — 보고서용 시연 화면 스크린샷용 ---- */
+:root[data-theme="light"] {
+  --bg: #f7f7f8;
+  --shell-bg: #ffffff;
+  --panel: #f2f2f4;
+  --panel-2: #e7e7ea;
+  --ink: #17171a;
+  --muted: rgba(23, 23, 26, .56);
+  --muted-strong: #4b4b52;
+  --line-soft: rgba(0, 0, 0, .08);
+  --border-tint: rgba(0, 0, 0, .12);
+  --btn-primary-bg: #17171a;
+  --btn-primary-text: #ffffff;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: 'Inter', Pretendard, -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+
+/* ---- 앱 셸: 페이지 전체를 채우는 단일 회색 배경 ---- */
+.app-shell {
+  display: flex; min-height: 100vh; background: var(--shell-bg);
+}
+.shell-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+
+/* ---- 아이콘 레일 ---- */
+.icon-rail {
+  width: var(--rail-width); flex-shrink: 0; display: flex; flex-direction: column; align-items: center;
+  gap: 6px; padding: 16px 0; border-right: 1px solid var(--line-soft); background: var(--shell-bg);
+}
+@media (max-width: 480px) { .icon-rail { display: none; } }
+.icon-rail a {
+  width: 34px; height: 34px; border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center;
+  color: var(--muted); position: relative; text-decoration: none;
+}
+.icon-rail a svg { width: 18px; height: 18px; }
+.icon-rail a:hover { background: var(--panel); color: var(--ink); }
+.icon-rail a.active { background: var(--panel-2); color: var(--ink); }
+.icon-rail a.active::before {
+  content: ""; position: absolute; left: -1px; top: 50%; transform: translateY(-50%);
+  width: 2px; height: 16px; border-radius: 2px; background: var(--muted-strong);
+}
+
+/* ---- 헤더 ---- */
+header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 20px var(--side-pad); border-bottom: 1px solid var(--line-soft); gap: 16px;
+}
+.brand { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; text-decoration: none; color: var(--ink); }
+.logo-word { font-weight: 600; font-size: 20px; letter-spacing: -0.02em; }
+header nav { display: flex; align-items: center; gap: 20px; flex-shrink: 0; }
+header nav a.navlink { color: var(--muted); text-decoration: none; font-size: 14.5px; font-weight: 500; letter-spacing: -0.005em; }
+header nav a.navlink:hover { color: var(--ink); }
+@media (max-width: 480px) {
+  header nav a.navlink { display: none; }
+}
+
+/* ---- 공통 버튼 ---- */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 11px 16px; border-radius: var(--radius-sm); font-size: 14.5px; font-weight: 500;
+  letter-spacing: -0.005em; cursor: pointer; font-family: inherit; text-decoration: none;
+}
+.btn-primary { background: var(--btn-primary-bg); color: var(--btn-primary-text); border: 1px solid var(--btn-primary-bg); }
+.btn-primary:hover { opacity: .88; }
+.btn-primary:disabled { opacity: .35; cursor: not-allowed; }
+.btn-secondary { background: transparent; color: var(--ink); border: 1px solid var(--border-tint); }
+.btn-secondary:hover { background: var(--panel); }
+.btn-block { display: flex; width: 100%; }
+
+/* ---- 뱃지(칩) ---- */
+.badge {
+  display: inline-flex; align-items: center; font-size: 11.5px; font-weight: 500; color: var(--muted);
+  background: var(--panel-2); padding: 2px 9px; border-radius: 999px; font-variant-numeric: tabular-nums;
+}
+
+footer.note { padding: 18px var(--side-pad) 32px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line-soft); margin-top: 20px; }
