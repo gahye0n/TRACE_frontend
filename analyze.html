@@ -270,7 +270,7 @@
           <div class="verdict-label"><span id="verdictText">—</span><span class="verdict-pct" id="verdictPct"></span></div>
           <div class="verdict-bar-track"><div class="verdict-bar-fill" id="verdictBarFill"></div></div>
         </div>
-        <div class="loading" id="loading"><div class="spinner"></div><span>Extracting frames · computing features · running inference...</span></div>
+        <div class="loading" id="loading"><div class="spinner"></div><span id="loadingText">Extracting frames · computing features · running inference...</span></div>
         <div id="errorBox"></div>
       </div>
     </div>
@@ -336,6 +336,15 @@
 <script>
 const API_BASE = "https://trace-backend-j8hh.onrender.com";
 
+/* The backend is on a free tier that sleeps after ~15min idle; a cold start can take 30-60s+
+   and often makes the very first /api/analyze look like it "failed" client-side. Pinging
+   /api/health as soon as the page loads starts waking it up before the user even picks a file. */
+let backendWarm = false;
+function warmBackend() {
+  fetch(`${API_BASE}/api/health`).then((r) => { if (r.ok) backendWarm = true; }).catch(() => {});
+}
+warmBackend();
+
 const dropzone = document.getElementById("dropzone");
 const dzPlaceholder = document.getElementById("dzPlaceholder");
 const firstFrameImg = document.getElementById("firstFrame");
@@ -399,6 +408,7 @@ function setFile(file) {
   analyzeBtn.disabled = false;
   errorBox.style.display = "none";
   showClientSideFirstFrame(file); // instant blurred preview before analysis starts
+  if (!backendWarm) warmBackend(); // a second nudge in case the first ping was too early
 }
 
 function showClientSideFirstFrame(file) {
@@ -505,13 +515,22 @@ sidebarItems.forEach((el, i) => {
 startLoop(); // show default active (01 ResNet)
 
 /* ---- Analyze request ---- */
+const loadingText = document.getElementById("loadingText");
+
 analyzeBtn.addEventListener("click", async () => {
   if (!selectedFile) return;
   loading.style.display = "flex";
+  loadingText.textContent = "Extracting frames · computing features · running inference...";
   errorBox.style.display = "none";
   analyzeBtn.disabled = true;
   dropzone.classList.add("analyzing");   // drop the blur -> show only the sharp first frame
   dzOverlay.classList.remove("show");    // hide button + filename
+
+  // If the server hasn't answered the warm-up ping yet, it's probably a cold start —
+  // say so after a few seconds instead of leaving the spinner unexplained.
+  const coldStartTimer = setTimeout(() => {
+    if (!backendWarm) loadingText.textContent = "Server was asleep (free hosting) — waking it up, this can take up to a minute...";
+  }, 4000);
 
   const form = new FormData();
   form.append("file", selectedFile);
@@ -526,11 +545,15 @@ analyzeBtn.addEventListener("click", async () => {
     lastData = data;
     renderAll(data);
   } catch (e) {
-    errorBox.textContent = `Analysis failed: ${e.message}`;
+    const hint = e.message === "Failed to fetch"
+      ? " — the server may have been asleep (free hosting); please try again in a moment."
+      : "";
+    errorBox.textContent = `Analysis failed: ${e.message}${hint}`;
     errorBox.style.display = "block";
     dropzone.classList.remove("analyzing"); // restore blur + button on failure so the user can retry
     dzOverlay.classList.add("show");
   } finally {
+    clearTimeout(coldStartTimer);
     loading.style.display = "none";
     analyzeBtn.disabled = false;
     resultsFooter.style.display = "block";
