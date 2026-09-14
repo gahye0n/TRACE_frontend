@@ -110,6 +110,22 @@
     position: absolute; left: 0; right: 0; bottom: 0; padding: 4px 6px; font-size: 10.5px;
     background: linear-gradient(to top, rgba(0, 0, 0, .75), transparent); color: #fff; text-align: left;
   }
+
+  /* ---- Simulated cursor for auto-demo mode ---- */
+  .demo-cursor {
+    position: fixed; top: 0; left: 0; z-index: 500; pointer-events: none;
+    opacity: 0; transform: translate(-50vw, -50vh);
+    transition: opacity 300ms ease;
+  }
+  .demo-cursor.show { opacity: 1; }
+  .demo-cursor svg { display: block; filter: drop-shadow(0 3px 6px rgba(0, 0, 0, .5)); }
+  .demo-cursor .ring {
+    position: absolute; top: -9px; left: -9px; width: 26px; height: 26px; border-radius: 50%;
+    background: rgba(255, 255, 255, .55); opacity: 0; transform: scale(.3);
+  }
+  .demo-cursor.clicking .ring { animation: cursorPulse .45s ease-out; }
+  @keyframes cursorPulse { 0% { opacity: 1; transform: scale(.3); } 100% { opacity: 0; transform: scale(2.4); } }
+
   #dropzone img#firstFrame {
     display: none; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
     filter: blur(16px); transform: scale(1.1);
@@ -223,6 +239,11 @@
 
 <div class="demo-badge" id="demoBadge" title="Click to exit demo mode">
   <span class="dot"></span> Demo mode — click to exit
+</div>
+
+<div class="demo-cursor" id="demoCursor" aria-hidden="true">
+  <span class="ring"></span>
+  <svg viewBox="0 0 24 24" width="26" height="26"><path d="M4 2.5 19 13l-6.2 1 2.9 6.3-2.7 1.2-2.9-6.3L5.8 19.6 4 2.5z" fill="#fff" stroke="#111" stroke-width="1.3" stroke-linejoin="round"/></svg>
 </div>
 
 <div class="layout">
@@ -823,16 +844,19 @@ function animateScore(target) {
   requestAnimationFrame(step);
 }
 
-/* ---- Auto demo mode (started from index.html): auto-upload the bundled sample video,
-   run the analysis, cycle through the 4 models so the result is visible, then loop back
-   to the home page to restart the whole walkthrough. ---- */
+/* ---- Auto demo mode (started from index.html): move a simulated cursor through picking a
+   sample video and running the analysis, cycle through the 4 models (still scrolled to the
+   top) so the verdict is visible for each, THEN scroll down to show the detailed results,
+   then loop back to the home page to restart the whole walkthrough. ---- */
 (function () {
   const DEMO_KEY = "trace-demo-mode";
   const demoBadge = document.getElementById("demoBadge");
+  const cursor = document.getElementById("demoCursor");
   const isDemoActive = () => { try { return sessionStorage.getItem(DEMO_KEY) === "1"; } catch (e) { return false; } };
   const exitDemo = () => {
     try { sessionStorage.removeItem(DEMO_KEY); } catch (e) {}
     demoBadge.classList.remove("show");
+    cursor.classList.remove("show");
   };
   demoBadge.addEventListener("click", exitDemo);
   if (!isDemoActive()) return;
@@ -840,21 +864,62 @@ function animateScore(target) {
   demoBadge.classList.add("show");
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
+  function moveCursorTo(x, y, duration) {
+    cursor.classList.add("show");
+    cursor.style.transition = `transform ${duration}ms cubic-bezier(.4,0,.2,1)`;
+    cursor.style.transform = `translate(${x}px, ${y}px)`;
+    return sleep(duration);
+  }
+
+  async function cursorClick(el) {
+    if (!el) return;
+    el.scrollIntoView({ block: "center", behavior: "auto" });
+    await sleep(150);
+    const r = el.getBoundingClientRect();
+    const x = r.left + r.width / 2, y = r.top + r.height / 2;
+    const dist = Math.hypot(window.__demoCursorX ? x - window.__demoCursorX : x, window.__demoCursorY ? y - window.__demoCursorY : y);
+    await moveCursorTo(x, y, Math.min(1100, Math.max(350, dist * 0.9)));
+    window.__demoCursorX = x; window.__demoCursorY = y;
+    cursor.classList.add("clicking");
+    await sleep(140);
+    el.click();
+    await sleep(280);
+    cursor.classList.remove("clicking");
+  }
+
+  function scrollPageDownOver(duration) {
+    return new Promise((resolve) => {
+      const startY = window.scrollY;
+      const endY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      const startT = performance.now();
+      function step(now) {
+        if (!isDemoActive()) return resolve();
+        const p = Math.min(1, (now - startT) / duration);
+        const eased = 1 - Math.pow(1 - p, 3);
+        window.scrollTo(0, startY + (endY - startY) * eased);
+        if (p < 1) requestAnimationFrame(step); else resolve();
+      }
+      requestAnimationFrame(step);
+    });
+  }
+
   (async () => {
-    await sleep(1200);
+    window.scrollTo(0, 0);
+    await sleep(1000);
     if (!isDemoActive()) return;
 
-    // Pick a random real/AI-generated sample each loop so repeat viewers see variety.
-    const pool = [...SAMPLES.real, ...SAMPLES.fake];
-    const path = pool[Math.floor(Math.random() * pool.length)];
-    const res = await fetch(path);
-    const blob = await res.blob();
-    const file = new File([blob], path.split("/").pop(), { type: "video/mp4" });
-    setFile(file);
-
-    await sleep(1400);
+    // 1) Open the sample picker and click a random real/AI-generated thumbnail — the cursor
+    //    visibly drives the same UI a person would use, rather than the file just appearing.
+    await cursorClick(document.getElementById("sampleTrigger"));
+    await sleep(500);
     if (!isDemoActive()) return;
-    analyzeBtn.click();
+    const allSampleButtons = Array.from(document.querySelectorAll("#sampleGridReal .sample-item, #sampleGridFake .sample-item"));
+    const pick = allSampleButtons[Math.floor(Math.random() * allSampleButtons.length)];
+    await cursorClick(pick);
+
+    await sleep(900);
+    if (!isDemoActive()) return;
+    await cursorClick(analyzeBtn);
 
     // renderAll() sets the module-level lastData once the analysis response comes back.
     const waitStart = Date.now();
@@ -864,13 +929,23 @@ function animateScore(target) {
     }
     if (!lastData || !isDemoActive()) return;
 
+    // 2) Step through models 1-4 while still at the top of the page, so the verdict card is
+    //    what's on screen for each — the detailed charts only get shown afterwards.
     for (const el of sidebarItems) {
       if (!isDemoActive()) return;
-      el.click();
-      await sleep(3800);
+      await cursorClick(el);
+      await sleep(2600);
     }
 
-    await sleep(2500);
+    cursor.classList.remove("show");
+    await sleep(600);
+    if (!isDemoActive()) return;
+
+    // 3) Now scroll down through the spectrum/feature/frame sections.
+    await scrollPageDownOver(6500);
+    if (!isDemoActive()) return;
+
+    await sleep(3000);
     if (isDemoActive()) location.href = "index.html";
   })();
 })();
