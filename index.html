@@ -144,6 +144,10 @@
   <nav>
     <a href="#overview" class="navlink">Research</a>
     <a href="https://github.com/gahye0n/TRACE_frontend" class="navlink" id="githubLink" target="_blank" rel="noopener">Github</a>
+    <button class="btn btn-secondary" id="demoBtn" title="Play an unattended walkthrough: scrolls the site, then runs a sample video through the analyzer">
+      <svg viewBox="0 0 20 20" fill="none"><path d="M6 4.5v11l9-5.5-9-5.5z" fill="currentColor"/></svg>
+      Demo
+    </button>
     <button class="btn btn-secondary" id="themeToggle" title="Toggle light/dark theme" aria-label="Toggle theme">
       <svg class="icon-moon" viewBox="0 0 20 20" fill="none"><path d="M17 11.5A7 7 0 0 1 8.5 3 7 7 0 1 0 17 11.5Z" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg>
       <svg class="icon-sun" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="3.6" stroke="currentColor" stroke-width="1.6"/><path d="M10 1.5v2.2M10 16.3v2.2M2.5 10h2.2M15.3 10h2.2M4.6 4.6l1.5 1.5M13.9 13.9l1.5 1.5M4.6 15.4l1.5-1.5M13.9 6.1l1.5-1.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
@@ -151,6 +155,10 @@
     <a href="analyze.html" class="btn btn-primary">Try Now</a>
   </nav>
 </header>
+
+<div class="demo-badge" id="demoBadge" title="Click to exit demo mode">
+  <span class="dot"></span> Demo mode — click to exit
+</div>
 
 <section class="hero">
   <div class="hero__bg" id="heroBg" aria-hidden="true"></div>
@@ -275,6 +283,59 @@
     }
     bg.appendChild(frag);
   })();
+
+  /* ---- Auto demo mode: scroll this page top-to-bottom, then hand off to analyze.html,
+     which uploads a sample video, shows the result, cycles the 4 models, then loops back here. ---- */
+  const DEMO_KEY = "trace-demo-mode";
+  const demoBtn = document.getElementById("demoBtn");
+  const demoBadge = document.getElementById("demoBadge");
+
+  function isDemoActive() { try { return sessionStorage.getItem(DEMO_KEY) === "1"; } catch (e) { return false; } }
+  function setDemoActive(on) { try { on ? sessionStorage.setItem(DEMO_KEY, "1") : sessionStorage.removeItem(DEMO_KEY); } catch (e) {} }
+
+  function exitDemo() {
+    setDemoActive(false);
+    demoBadge.classList.remove("show");
+    demoBtn.classList.remove("active");
+  }
+
+  function scrollToBottomThenGo() {
+    const duration = 5000;
+    const startY = window.scrollY;
+    const endY = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+    const startT = performance.now();
+    function step(now) {
+      if (!isDemoActive()) return;
+      const p = Math.min(1, (now - startT) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      window.scrollTo(0, startY + (endY - startY) * eased);
+      if (p < 1) {
+        requestAnimationFrame(step);
+      } else {
+        setTimeout(() => { if (isDemoActive()) location.href = "analyze.html"; }, 2200);
+      }
+    }
+    requestAnimationFrame(step);
+  }
+
+  demoBtn.addEventListener("click", () => {
+    if (isDemoActive()) { exitDemo(); return; }
+    setDemoActive(true);
+    demoBadge.classList.add("show");
+    demoBtn.classList.add("active");
+    window.scrollTo(0, 0);
+    setTimeout(scrollToBottomThenGo, 500);
+  });
+
+  demoBadge.addEventListener("click", exitDemo);
+
+  if (isDemoActive()) {
+    // Looped back here from analyze.html — show the badge and restart the cycle.
+    demoBadge.classList.add("show");
+    demoBtn.classList.add("active");
+    window.scrollTo(0, 0);
+    setTimeout(scrollToBottomThenGo, 1200);
+  }
 </script>
 </body>
 </html>

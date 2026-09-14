@@ -191,6 +191,10 @@
   </nav>
 </header>
 
+<div class="demo-badge" id="demoBadge" title="Click to exit demo mode">
+  <span class="dot"></span> Demo mode — click to exit
+</div>
+
 <div class="layout">
   <aside id="sidebar" class="line-sidebar line-sidebar--markers line-sidebar--scale-tick">
     <ul class="line-sidebar__list" id="sidebarList">
@@ -696,6 +700,55 @@ function animateScore(target) {
   }
   requestAnimationFrame(step);
 }
+
+/* ---- Auto demo mode (started from index.html): auto-upload the bundled sample video,
+   run the analysis, cycle through the 4 models so the result is visible, then loop back
+   to the home page to restart the whole walkthrough. ---- */
+(function () {
+  const DEMO_KEY = "trace-demo-mode";
+  const demoBadge = document.getElementById("demoBadge");
+  const isDemoActive = () => { try { return sessionStorage.getItem(DEMO_KEY) === "1"; } catch (e) { return false; } };
+  const exitDemo = () => {
+    try { sessionStorage.removeItem(DEMO_KEY); } catch (e) {}
+    demoBadge.classList.remove("show");
+  };
+  demoBadge.addEventListener("click", exitDemo);
+  if (!isDemoActive()) return;
+
+  demoBadge.classList.add("show");
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  (async () => {
+    await sleep(1200);
+    if (!isDemoActive()) return;
+
+    const res = await fetch("demo-sample.mp4");
+    const blob = await res.blob();
+    const file = new File([blob], "demo-sample.mp4", { type: "video/mp4" });
+    setFile(file);
+
+    await sleep(1400);
+    if (!isDemoActive()) return;
+    analyzeBtn.click();
+
+    // renderAll() sets the module-level lastData once the analysis response comes back.
+    const waitStart = Date.now();
+    while (!lastData && Date.now() - waitStart < 45000) {
+      if (!isDemoActive()) return;
+      await sleep(300);
+    }
+    if (!lastData || !isDemoActive()) return;
+
+    for (const el of sidebarItems) {
+      if (!isDemoActive()) return;
+      el.click();
+      await sleep(3800);
+    }
+
+    await sleep(2500);
+    if (isDemoActive()) location.href = "index.html";
+  })();
+})();
 </script>
 </body>
 </html>

@@ -118,3 +118,18 @@ footer.note { padding: 18px var(--side-pad) 32px; font-size: 12px; color: var(--
 #themeToggle .icon-sun { display: none; }
 :root[data-theme="light"] #themeToggle .icon-moon { display: none; }
 :root[data-theme="light"] #themeToggle .icon-sun { display: block; }
+
+/* ---- Demo 버튼 + 데모 모드 배지(모든 페이지 공통) ---- */
+#demoBtn svg { width: 13px; height: 13px; }
+#demoBtn.active { background: var(--btn-primary-bg); color: var(--btn-primary-text); border-color: var(--btn-primary-bg); }
+
+.demo-badge {
+  position: fixed; top: 78px; right: 24px; z-index: 200;
+  display: none; align-items: center; gap: 10px;
+  padding: 9px 14px; border-radius: 999px; cursor: pointer;
+  background: var(--ink); color: var(--bg); font-size: 13px; font-weight: 600;
+  box-shadow: 0 8px 24px -8px rgba(0, 0, 0, .5);
+}
+.demo-badge.show { display: inline-flex; }
+.demo-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: #ef4444; animation: demoPulse 1.2s ease-in-out infinite; }
+@keyframes demoPulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
