@@ -461,10 +461,16 @@ function setFile(file) {
 /* ---- Sample video picker: a small bundled set of real/AI-generated clips you can pick
    instead of uploading your own (e.g. for a quick demo). Picking one behaves exactly like
    a normal upload — it just fills the dropzone via setFile(). ---- */
+// Bump this whenever a sample .mp4's content changes without renaming the file — GitHub
+// Pages' CDN caches these for 10 minutes (and browsers can hold on to them far longer), so
+// without a cache-busting query string a swapped-in clip can keep serving the old bytes.
+const SAMPLES_VERSION = "2";
 const SAMPLES = {
   real: ["samples/real/r1.mp4", "samples/real/r2.mp4", "samples/real/r3.mp4", "samples/real/r4.mp4"],
   fake: ["samples/fake/f1.mp4", "samples/fake/f2.mp4", "samples/fake/f3.mp4", "samples/fake/f4.mp4", "samples/fake/f5.mp4"],
 };
+SAMPLES.real = SAMPLES.real.map((p) => `${p}?v=${SAMPLES_VERSION}`);
+SAMPLES.fake = SAMPLES.fake.map((p) => `${p}?v=${SAMPLES_VERSION}`);
 
 const sampleModal = document.getElementById("sampleModal");
 let samplesBuilt = false;
