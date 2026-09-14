@@ -844,9 +844,12 @@ function animateScore(target) {
     await sleep(1200);
     if (!isDemoActive()) return;
 
-    const res = await fetch("demo-sample.mp4");
+    // Pick a random real/AI-generated sample each loop so repeat viewers see variety.
+    const pool = [...SAMPLES.real, ...SAMPLES.fake];
+    const path = pool[Math.floor(Math.random() * pool.length)];
+    const res = await fetch(path);
     const blob = await res.blob();
-    const file = new File([blob], "demo-sample.mp4", { type: "video/mp4" });
+    const file = new File([blob], path.split("/").pop(), { type: "video/mp4" });
     setFile(file);
 
     await sleep(1400);
